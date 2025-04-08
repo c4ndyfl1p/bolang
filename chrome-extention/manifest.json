@@ -3,7 +3,10 @@
   "name": "Noun Translator",
   "version": "1.0",
   "description": "Replaces nouns with translations.",
-  "permissions": ["scripting"],
+  "permissions": ["scripting", "storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "host_permissions": ["http://localhost:5000/"],
   "content_scripts": [
     {

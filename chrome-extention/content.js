@@ -16,16 +16,50 @@
 // 3. Add a a slider to change intensity of nouns and verbs translations (send that to the backend)
 // 4. Send the website URL to the backend and have the backend generate specific translations for that website
 
-// 1. Fetch the replacements from backend
-async function fetchReplacements() {
-    try {
-      const response = await fetch("http://localhost:5000/get-replacements");
-      const replacements = await response.json();
-      applyReplacements(replacements);
-    } catch (error) {
-      console.error("Failed to fetch replacements:", error);
+
+let extensionEnabled = false; // Default state
+
+// ========= ADDED: Listen for toggle messages from the popup =========
+// This listener waits for messages (sent by the popup when the toggle is changed)
+// to update the extension's state.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "TOGGLE_EXTENSION") {
+    extensionEnabled = message.enabled;
+    if (extensionEnabled) {
+      // If enabled, fetch and apply translations.
+      fetchReplacements();
+    } else {
+      // If turned off, revert the translations.
+      // For simplicity, we reload the page to restore original text.
+      location.reload();
     }
   }
+});
+
+// ========= ADDED: Initialize based on stored setting =========
+// When the page loads, we check chrome.storage to see if the extension
+// is enabled. Based on that, we decide whether to fetch translations.
+chrome.storage.local.get("extensionEnabled", (data) => {
+  extensionEnabled = data.extensionEnabled ?? false;
+  if (extensionEnabled) {
+    fetchReplacements();
+  }
+});
+
+// 1. Fetch the replacements from backend
+async function fetchReplacements() {
+
+  // Only run the process if the extension is enabled.
+  if (!extensionEnabled) return;
+
+  try {
+    const response = await fetch("http://localhost:5000/get-replacements");
+    const replacements = await response.json();
+    applyReplacements(replacements);
+  } catch (error) {
+    console.error("Failed to fetch replacements:", error);
+  }
+}
   
   // 2. Apply replacements to the entire DOM
   function applyReplacements(replacements) {
@@ -129,7 +163,7 @@ async function fetchReplacements() {
     document.head.appendChild(style);
   }
   
-  // 🚀 Start the process
-  fetchReplacements();
-  
+// 🚀 Start the process
+fetchReplacements();
+
   
