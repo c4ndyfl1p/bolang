@@ -3,40 +3,47 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Translator Toggle</title>
+  <title>Bolang Translate</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="popup-container">
     <h2>🌍 Bolang Translate</h2>
-     <!-- Target language selection -->
-     
-     <label for="target-language">Target Language: </label>
-     <select id="target-language">
-       <option value="DA">Danish</option>
-       <option value="ES">Spanish</option>
-       <option value="FR">French</option>
-       <option value="DE">German</option>
-       <option value="IT">Italian</option>
-       <option value="PL">Polish</option>
-       <!-- Add more language options as needed -->
-     </select>
 
-     <!-- Noun translation slider -->
-    <label for="noun-slider">Nouns </label>
-    <input type="range" id="noun-slider" min="0" max="2" value="1">
-    
-    <label for="verb-slider">Verbs </label>
-    <input type="range" id="verb-slider" min="0" max="2" value="1">
+    <div class="group">
+      <label for="target-language">Target Language</label>
+      <select id="target-language">
+        <option value="DA">Danish</option>
+        <option value="ES">Spanish</option>
+        <option value="FR">French</option>
+        <option value="DE">German</option>
+        <option value="IT">Italian</option>
+        <option value="PL">Polish</option>
+      </select>
+    </div>
 
-    <label for="preposition-slider">Prepositions </label>
-    <input type="range" id="preposition-slider" min="0" max="2" value="1">
+    <div class="group">
+      <label for="noun-slider">Nouns</label>
+      <input type="range" id="noun-slider" min="0" max="2" value="1">
+    </div>
 
-    <label class="switch">
-      <input type="checkbox" id="toggle-extension">
-      <span class="slider"></span>
-    </label>
-    <p id="status-text">Extension is <strong>Off</strong></p>
+    <div class="group">
+      <label for="verb-slider">Verbs</label>
+      <input type="range" id="verb-slider" min="0" max="2" value="1">
+    </div>
+
+    <div class="group">
+      <label for="preposition-slider">Prepositions</label>
+      <input type="range" id="preposition-slider" min="0" max="2" value="1">
+    </div>
+
+    <div class="group toggle-group">
+      <label class="switch">
+        <input type="checkbox" id="toggle-extension">
+        <span class="slider"></span>
+      </label>
+      <p id="status-text">Extension is <strong>Off</strong></p>
+    </div>
   </div>
 
   <script src="popup.js"></script>

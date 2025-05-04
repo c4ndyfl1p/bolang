@@ -1,50 +1,20 @@
 body {
     margin: 0;
     font-family: 'Segoe UI', sans-serif;
-    background-color: #ffffff;
+    background-color: #fdf6ff;
     padding: 20px;
-    width: 260px;
+    width: 220px;
   }
   
   .popup-container {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    align-items: center;
   }
   
   h2 {
-    margin: 0 0 10px;
-    text-align: center;
+    margin: 0 0 15px;
     color: #5f27cd;
-    font-size: 1.4rem;
-  }
-  
-  .group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  
-  select, input[type="range"] {
-    width: 100%;
-    padding: 6px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 0.9rem;
-  }
-  
-  select {
-    background-color: #f5f5f5;
-  }
-  
-  input[type="range"] {
-    accent-color: #5f27cd;
-  }
-  
-  .toggle-group {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
   }
   
   .switch {
@@ -52,6 +22,7 @@ body {
     display: inline-block;
     width: 50px;
     height: 28px;
+    margin-bottom: 10px;
   }
   
   .switch input {
@@ -69,7 +40,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    transition: background-color 0.3s;
+    transition: 0.4s;
   }
   
   .slider:before {
@@ -81,7 +52,7 @@ body {
     bottom: 3px;
     background-color: white;
     border-radius: 50%;
-    transition: transform 0.3s;
+    transition: 0.4s;
   }
   
   input:checked + .slider {
@@ -94,10 +65,6 @@ body {
   
   #status-text {
     font-size: 14px;
-    color: #444;
+    color: #555;
   }
   
-  .popup-container {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-  }
