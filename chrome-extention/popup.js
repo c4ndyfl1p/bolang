@@ -12,9 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggle = document.getElementById("toggle-extension");
   const statusText = document.getElementById("status-text");
   const targetLanguageSelect = document.getElementById("target-language");
+  const nounSlider = document.getElementById("noun-slider");
 
   // Load stored state
-  chrome.storage.local.get(["extensionEnabled", "targetLanguage"], (data) => {
+  chrome.storage.local.get(["extensionEnabled", "targetLanguage", "nounSliderValue"], (data) => {
     // Set the toggle state based on stored value
     // If no value is stored, default to false for extensionEnabled
     toggle.checked = data.extensionEnabled ?? false;
@@ -23,6 +24,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const selectedLanguage = data.targetLanguage ?? "da"; // Default to Danish if no language is stored
     targetLanguageSelect.value = selectedLanguage;
     updateTargetLanguageSelect(selectedLanguage);
+
+    nounSlider.value = data.nounSliderValue ?? 1; // Default to 1 if no value is stored
+    updateNounSlider(nounSlider.value); // Update the slider UI
+
+    
   });
 
 
@@ -48,12 +54,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Send message to content script with the selected target language
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      // chrome.tabs.sendMessage(tabs[0].id, { type: "SET_TARGET_LANGUAGE", language: selectedLanguage });
-      // chrome.tabs.sendMessage(tabs[0].id, { type: "TOGGLE_EXTENSION", enabled: true }); //no dont do that.
-      
+            
     });
   });
 
+    // Add event listener for the noun slider to handle changes
+  nounSlider.addEventListener("input", () => {
+    const nounSliderValue = nounSlider.value;
+    chrome.storage.local.set({ nounSliderValue: nounSliderValue });
+    console.log('Noun slider value stored:', nounSliderValue); // Optional: for debugging
+
+    updateNounSlider(nounSliderValue);
+    // Optionally, send a message to content script with the selected noun slider value
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      // Example: You can send the nounSliderValue to the content script here if needed
+      chrome.tabs.sendMessage(tabs[0].id, { type: "updateNounSlider", value: nounSliderValue });
+    });
+  });
 
   // Function to update the target language select element
   function updateTargetLanguageSelect(selectedLanguage) {    
@@ -64,5 +81,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Function to update the status text based on the extension state
   function updateStatusText(enabled) {
     statusText.innerHTML = `Extension is <strong>${enabled ? "On" : "Off"}</strong>`;
+  }
+
+  function updateNounSlider(value) {
+    nounSlider.value  = value;
   }
 });
