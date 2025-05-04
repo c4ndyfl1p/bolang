@@ -29,15 +29,20 @@ let extensionEnabled = false; // Default state
 // This listener waits for messages (sent by the popup when the toggle is changed)
 // to update the extension's state.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Check if the message is of type "TOGGLE_EXTENSION"
   if (message.type === "TOGGLE_EXTENSION") {
+    // Update the extension's state based on the message
     extensionEnabled = message.enabled;
+    console.log("Extension state changed:", extensionEnabled);
     if (extensionEnabled) {
       // If enabled, fetch and apply translations.
+      console.log("Extension enabled. Fetching replacements...");
       fetchReplacements();
     } else {
       // If turned off, revert the translations.
       // For simplicity, we reload the page to restore original text.
       location.reload();
+      console.log("Extension disabled. Reloading page to restore original text.");
     }
   }
 });
@@ -45,10 +50,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ========= ADDED: Initialize based on stored setting =========
 // When the page loads, we check chrome.storage to see if the extension
 // is enabled. Based on that, we decide whether to fetch translations.
-chrome.storage.local.get("extensionEnabled", (data) => {
+chrome.storage.local.get(["extensionEnabled", "targetLanguage"], (data) => {
   extensionEnabled = data.extensionEnabled ?? false;
+  // const targetLanguage = data.targetLanguage || "da"; // Default to Danish
+
+  // console.log("content.js: Target language from chrome storage:", targetLanguage);
+
   if (extensionEnabled) {
-    fetchReplacements();
+    console.log("Extension is enabled, read from chrome storage.");
+    fetchReplacements(); // Pass it to your function if needed
   }
 });
 
@@ -58,12 +68,46 @@ async function fetchReplacements() {
   // Only run the process if the extension is enabled.
   if (!extensionEnabled) return;
 
+  // try {   
+  //   currentUrl = window.location.href;
+  //   const response = await fetch(`http://localhost:5000/get-replacements?url=${encodeURIComponent(currentUrl)}`);
+    
+  //   // const response = await fetch("http://localhost:5000/get-replacements");
+  //   const replacements = await response.json();
+  //   applyReplacements(replacements);
+  // } catch (error) {
+  //   console.error("Failed to fetch replacements:", error);
+  // }
+
   try {
-    const currentUrl = window.location.href;
-    const response = await fetch(`http://localhost:5000/get-replacements?url=${encodeURIComponent(currentUrl)}`);
-    // const response = await fetch("http://localhost:5000/get-replacements");
-    const replacements = await response.json();
-    applyReplacements(replacements);
+    // Get the targetLanguage from local storage
+    chrome.storage.local.get("targetLanguage", async (data) => {
+      const targetLanguage = data.targetLanguage || "danish"; // default if not set
+      console.log("fetching replacingts for Target language:", targetLanguage);
+      currentUrl = window.location.href;
+      
+
+      // Construct the URL using the URL object and URLSearchParams
+      const baseUrl = "http://localhost:5000/get-replacements";
+      const params = new URLSearchParams({
+        url: currentUrl,
+        targetLanguage: targetLanguage
+      });
+
+      // Combine the base URL with query parameters
+      const requestUrl = `${baseUrl}?${params.toString()}`;
+
+      // Fetch data from backend
+      const response = await fetch(requestUrl);
+      
+      //basic way, not using now, using prettier way to encode the url
+      // const response = await fetch(`http://localhost:5000/get-replacements?url=${encodeURIComponent(currentUrl)}&targetLanguage=${encodeURIComponent(targetLanguage)}`);
+
+      const replacements = await response.json();
+      console.log("Replacements fetched. Target language:", targetLanguage, "Replacements:", replacements);
+      location.reload();
+      applyReplacements(replacements);
+    });
   } catch (error) {
     console.error("Failed to fetch replacements:", error);
   }
@@ -71,8 +115,19 @@ async function fetchReplacements() {
   
   // 2. Apply replacements to the entire DOM
   function applyReplacements(replacements) {
+
+    // removePreviousTranslations();
     replaceText(document.body, replacements);
     addStyle();
+    
+  }
+
+  function removePreviousTranslations() {
+    const spans = document.querySelectorAll('.translated-noun, .translated-verb, .translated-preposition');
+    for (const span of spans) {
+      const textNode = document.createTextNode(span.title); // original text is in title attr
+      span.replaceWith(textNode);
+    }
   }
   
   // 3. Replace words in text nodes recursively (no innerHTML)
