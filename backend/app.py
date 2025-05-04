@@ -54,6 +54,8 @@ def get_replacements():
     source_lang = "EN"
     target_lang = request.args.get('targetLanguage')
     nounSliderValue = int(request.args.get('nounSliderValue', 1))  # default to 1 if not provided
+    verbSliderValue = int(request.args.get('verbSliderValue', 1))  # default to 1 if not provided
+    prepositionSliderValue = int(request.args.get('prepositionSliderValue', 1))
 
     # Map slider values to intensities
     noun_intensity_map = {
@@ -61,9 +63,27 @@ def get_replacements():
         1: 5,
         2: 30
     }
-
-    # Use .get() to provide a default in case of invalid input
     noun_intensity = noun_intensity_map.get(nounSliderValue, 5)
+
+
+    # Map slider values to intensities
+    verb_intensity_map = {
+        0: 0,
+        1: 5,
+        2: 30
+    }
+    verb_intensity = verb_intensity_map.get(verbSliderValue, 5)
+    
+    # Map slider values to intensities
+    preposition_intensity_map = {
+        0: 0,
+        1: 5,
+        2: 30
+    }
+    preposition_intensity = preposition_intensity_map.get(prepositionSliderValue, 5)
+
+
+
     # target_lang = "DA"
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -88,8 +108,8 @@ def get_replacements():
         prepositions_list = [token.text.lower() for token in doc if token.pos_ == "ADP" and token.is_alpha]
 
         top_nouns = [noun for noun, count in Counter(nouns_list).most_common(noun_intensity)]
-        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(5)]
-        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(5)]
+        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(preposition_intensity)]
+        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(verb_intensity)]
 
         # Combine all words to translate
         all_words = list(set(top_nouns + top_verbs + top_prepositions))
