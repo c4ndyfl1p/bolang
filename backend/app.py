@@ -23,7 +23,8 @@ if DEEPL_API_KEY is None:
 # Simple in-memory cache (key: word, value: translation)
 translation_cache = {}
 
-def batch_translate_words(words, source_lang="EN", target_lang="DA"):
+
+def batch_translate_words(words, source_lang, target_lang):
     url = "https://api-free.deepl.com/v2/translate"
     params = {
         "auth_key": DEEPL_API_KEY,
@@ -44,33 +45,51 @@ def batch_translate_words(words, source_lang="EN", target_lang="DA"):
     except Exception as e:
         print(f"Batch DeepL error: {e}")
         return [word + " (DK)" for word in words]  # fallback dummy translation
+# Now supports multiple languages
+# translation_cache = {}
 
-def get_cached_or_translated(words):
-    to_translate = []
-    final_mapping = {}
+# def get_cached_or_translated(words, source_lang, target_lang):
+#     to_translate = []
+#     final_mapping = {}
 
-    # First check cache
-    for word in words:
-        if word in translation_cache:
-            final_mapping[word] = translation_cache[word]
-        else:
-            to_translate.append(word)
+#     # Ensure target language cache exists
+#     if target_lang not in translation_cache:
+#         translation_cache[target_lang] = {}
 
-    # Only call DeepL for words not already cached
-    if to_translate:
-        translations = batch_translate_words(to_translate)
-        for word, translated in zip(to_translate, translations):
-            translation_cache[word] = translated
-            final_mapping[word] = translated
+#     lang_cache = translation_cache[target_lang]
 
-    return final_mapping
+#     # Check cache
+#     for word in words:
+#         if word in lang_cache:
+#             final_mapping[word] = lang_cache[word]
+#         else:
+#             to_translate.append(word)
+
+#     # Translate uncached words
+#     if to_translate:
+#         translations = batch_translate_words(to_translate, source_lang, target_lang)
+#         for word, translated in zip(to_translate, translations):
+#             lang_cache[word] = translated
+#             final_mapping[word] = translated
+
+#     return final_mapping
 
 @app.route("/get-replacements", methods=["GET"])
 def get_replacements():
     url = request.args.get('url')
-
+    print(f"Received URL: {url}")
+    print(f"targetlanguage: {request.args.get('targetLanguage')}")
+    source_lang = "EN"
+    target_lang = request.args.get('targetLanguage')
+    # target_lang = "DA"
     if not url:
         return jsonify({"error": "No URL provided"}), 400
+    
+    # return jsonify({
+    #         "nouns": {"water"   : "vand"},
+    #         "verbs": {"run"     : "løbe"},
+    #         "prepositions": {"in"     : "i"},
+    #     })
 
     try:
         response = requests.get(url, timeout=5)
@@ -85,16 +104,20 @@ def get_replacements():
         verbs_list = [token.text.lower() for token in doc if token.pos_ == "VERB" and token.is_alpha]
         prepositions_list = [token.text.lower() for token in doc if token.pos_ == "ADP" and token.is_alpha]
 
-        top_nouns = [noun for noun, count in Counter(nouns_list).most_common(30)]
-        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(20)]
-        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(10)]
+        top_nouns = [noun for noun, count in Counter(nouns_list).most_common(5)]
+        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(5)]
+        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(5)]
 
         # Combine all words to translate
         all_words = list(set(top_nouns + top_verbs + top_prepositions))
 
-        # Get translations (cached + newly translated)
-        translation_dict = get_cached_or_translated(all_words)
+        translations = batch_translate_words(all_words, source_lang, target_lang)
 
+        # Get translations (cached + newly translated)
+        translation_dict = {word: translated for word, translated in zip(all_words, translations)}
+        # translation_dict = get_cached_or_translated(all_words, source_lang, target_lang)
+        
+        # tip: if intnsity is 0: you can send empty dict. but you cant send no dict
         translated_nouns = {noun: translation_dict[noun] for noun in top_nouns if noun in translation_dict}
         translated_verbs = {verb: translation_dict[verb] for verb in top_verbs if verb in translation_dict}
         translated_prepositions = {prep: translation_dict[prep] for prep in top_prepositions if prep in translation_dict}
