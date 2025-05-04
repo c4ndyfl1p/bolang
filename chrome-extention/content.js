@@ -129,7 +129,7 @@ async function fetchReplacements() {
   }
 
   function removePreviousTranslations() {
-    const spans = document.querySelectorAll('.translated-noun, .translated-verb, .translated-preposition');
+    const spans = document.querySelectorAll('.translated-noun, .translated-verb, .translated-preposition', '.translated-pronoun');
     for (const span of spans) {
       const textNode = document.createTextNode(span.title); // original text is in title attr
       span.replaceWith(textNode);
@@ -150,9 +150,12 @@ async function fetchReplacements() {
       const allWords = [
         ...Object.keys(replacements.nouns),
         ...Object.keys(replacements.verbs),
-        ...Object.keys(replacements.prepositions)
+        ...Object.keys(replacements.prepositions),
+        ...Object.keys(replacements.pronouns)
       ];
-      const regex = new RegExp(`\\b(${allWords.join("|")})\\b`, "gi");
+      // const regex = new RegExp(`\\b(${allWords.join("|")})\\b`, "gi");
+      const regex = new RegExp(`(?<!\\w)(${allWords.join("|")})(?!\\w)`, "gi");
+
   
       let match;
       while ((match = regex.exec(text)) !== null) {
@@ -176,7 +179,11 @@ async function fetchReplacements() {
         } else if (replacements.prepositions[lower]) {
           translation = replacements.prepositions[lower];
           className = "translated-preposition";
-        }
+        } 
+        // else if (replacements.pronouns[lower]) {
+        //   translation = replacements.pronouns[lower];
+        //   className = "translated-pronoun";
+        // }
   
         const span = document.createElement("span");
         span.className = className;
@@ -235,6 +242,13 @@ async function fetchReplacements() {
   
       .translated-verb {
         background-color: #fff9c4;
+        cursor: help;
+        border-radius: 4px;
+        padding: 0 2px;
+      }
+
+      .translated-pronoun {
+        background-color:rgb(95, 240, 158);
         cursor: help;
         border-radius: 4px;
         padding: 0 2px;
