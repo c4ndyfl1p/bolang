@@ -1,4 +1,4 @@
-#!/home/alex/HCAI/word_replacer_extention/.hcai/bin/python3
+#!/home/alex/HCAI/bolang/.hcai/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
