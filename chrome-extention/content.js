@@ -81,17 +81,19 @@ async function fetchReplacements() {
 
   try {
     // Get the targetLanguage from local storage
-    chrome.storage.local.get("targetLanguage", async (data) => {
+    chrome.storage.local.get(["targetLanguage", "nounSliderValue"], async (data) => {
       const targetLanguage = data.targetLanguage || "danish"; // default if not set
-      console.log("fetching replacingts for Target language:", targetLanguage);
+      console.log("fetching replacingts for Target language:", targetLanguage, "Noun slider value:", data.nounSliderValue);
       currentUrl = window.location.href;
+      nounSliderValue = data.nounSliderValue || 1; // default if not set
       
 
       // Construct the URL using the URL object and URLSearchParams
       const baseUrl = "http://localhost:5000/get-replacements";
       const params = new URLSearchParams({
         url: currentUrl,
-        targetLanguage: targetLanguage
+        targetLanguage: targetLanguage,
+        nounSliderValue: nounSliderValue
       });
 
       // Combine the base URL with query parameters
@@ -105,7 +107,7 @@ async function fetchReplacements() {
 
       const replacements = await response.json();
       console.log("Replacements fetched. Target language:", targetLanguage, "Replacements:", replacements);
-      location.reload();
+      // location.reload();
       applyReplacements(replacements);
     });
   } catch (error) {

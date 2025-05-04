@@ -45,34 +45,6 @@ def batch_translate_words(words, source_lang, target_lang):
     except Exception as e:
         print(f"Batch DeepL error: {e}")
         return [word + " (DK)" for word in words]  # fallback dummy translation
-# Now supports multiple languages
-# translation_cache = {}
-
-# def get_cached_or_translated(words, source_lang, target_lang):
-#     to_translate = []
-#     final_mapping = {}
-
-#     # Ensure target language cache exists
-#     if target_lang not in translation_cache:
-#         translation_cache[target_lang] = {}
-
-#     lang_cache = translation_cache[target_lang]
-
-#     # Check cache
-#     for word in words:
-#         if word in lang_cache:
-#             final_mapping[word] = lang_cache[word]
-#         else:
-#             to_translate.append(word)
-
-#     # Translate uncached words
-#     if to_translate:
-#         translations = batch_translate_words(to_translate, source_lang, target_lang)
-#         for word, translated in zip(to_translate, translations):
-#             lang_cache[word] = translated
-#             final_mapping[word] = translated
-
-#     return final_mapping
 
 @app.route("/get-replacements", methods=["GET"])
 def get_replacements():
@@ -81,6 +53,17 @@ def get_replacements():
     print(f"targetlanguage: {request.args.get('targetLanguage')}")
     source_lang = "EN"
     target_lang = request.args.get('targetLanguage')
+    nounSliderValue = int(request.args.get('nounSliderValue', 1))  # default to 1 if not provided
+
+    # Map slider values to intensities
+    noun_intensity_map = {
+        0: 0,
+        1: 5,
+        2: 30
+    }
+
+    # Use .get() to provide a default in case of invalid input
+    noun_intensity = noun_intensity_map.get(nounSliderValue, 5)
     # target_lang = "DA"
     if not url:
         return jsonify({"error": "No URL provided"}), 400
@@ -104,7 +87,7 @@ def get_replacements():
         verbs_list = [token.text.lower() for token in doc if token.pos_ == "VERB" and token.is_alpha]
         prepositions_list = [token.text.lower() for token in doc if token.pos_ == "ADP" and token.is_alpha]
 
-        top_nouns = [noun for noun, count in Counter(nouns_list).most_common(5)]
+        top_nouns = [noun for noun, count in Counter(nouns_list).most_common(noun_intensity)]
         top_verbs = [verb for verb, count in Counter(verbs_list).most_common(5)]
         top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(5)]
 
