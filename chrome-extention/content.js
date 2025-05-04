@@ -81,11 +81,13 @@ async function fetchReplacements() {
 
   try {
     // Get the targetLanguage from local storage
-    chrome.storage.local.get(["targetLanguage", "nounSliderValue"], async (data) => {
+    chrome.storage.local.get(["targetLanguage", "nounSliderValue", "verbSliderValue", "prepositionSliderValue"], async (data) => {
       const targetLanguage = data.targetLanguage || "danish"; // default if not set
       console.log("fetching replacingts for Target language:", targetLanguage, "Noun slider value:", data.nounSliderValue);
       currentUrl = window.location.href;
       nounSliderValue = data.nounSliderValue || 1; // default if not set
+      verbSliderValue = data.verbSliderValue || 1; // default if not set
+      prepositionSliderValue = data.prepositionSliderValue || 1; // default if not set
       
 
       // Construct the URL using the URL object and URLSearchParams
@@ -93,7 +95,9 @@ async function fetchReplacements() {
       const params = new URLSearchParams({
         url: currentUrl,
         targetLanguage: targetLanguage,
-        nounSliderValue: nounSliderValue
+        nounSliderValue: nounSliderValue,
+        verbSliderValue: verbSliderValue,
+        prepositionSliderValue: prepositionSliderValue
       });
 
       // Combine the base URL with query parameters
