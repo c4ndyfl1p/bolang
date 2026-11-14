@@ -12,7 +12,9 @@
 if (!window.__bolangLoaded) {
   window.__bolangLoaded = true;
 
-  const BACKEND_URL = "http://localhost:5000/get-replacements";
+  // Where the backend lives. Change this one line (and host_permissions in manifest.json) when deploying.
+  const BACKEND_URL = "http://localhost:5000";
+  const MAX_TEXT_CHARS = 100000; // same cap as the backend
   const WORD_SELECTOR = ".bolang-word";
   const POS = {
     nouns: { className: "bolang-noun", label: "noun" },
@@ -26,7 +28,7 @@ if (!window.__bolangLoaded) {
         .then((counts) => sendResponse({ ok: true, counts }))
         .catch((err) => {
           console.error("BoLang:", err);
-          sendResponse({ ok: false, error: err.message });
+          sendResponse({ ok: false, error: err.message, status: err.status });
         });
       return true; // keep the message channel open for the async response
     }
@@ -37,16 +39,36 @@ if (!window.__bolangLoaded) {
   });
 
   async function translatePage(settings) {
-    const params = new URLSearchParams({ url: window.location.href, ...settings });
+    // Send the text the user is looking at (not the URL): works on logged-in pages and means the
+    // server never has to download arbitrary web pages. Capped to keep requests small.
+    const text = document.body.innerText.slice(0, MAX_TEXT_CHARS);
+
+    // The invite code goes in the standard Authorization header, not in the body
+    const { inviteCode, ...options } = settings;
+    const headers = { "Content-Type": "application/json" };
+    if (inviteCode) headers.Authorization = `Bearer ${inviteCode}`;
 
     let response;
     try {
-      response = await fetch(`${BACKEND_URL}?${params}`);
+      response = await fetch(`${BACKEND_URL}/replacements`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ text, ...options }),
+      });
     } catch {
       throw new Error("Can't reach the BoLang server. Is the backend running?");
     }
-    const replacements = await response.json();
-    if (!response.ok) throw new Error(replacements.error || `Server error (${response.status})`);
+    let replacements;
+    try {
+      replacements = await response.json();
+    } catch {
+      throw new Error(`Server error (${response.status})`);
+    }
+    if (!response.ok) {
+      const err = new Error(replacements.error || `Server error (${response.status})`);
+      err.status = response.status; // lets the popup react to 401 (invite code needed)
+      throw err;
+    }
 
     // Start from the original text so clicking again with new settings doesn't stack translations
     removePreviousTranslations();

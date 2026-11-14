@@ -12,10 +12,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const restoreBtn = document.getElementById("restore-btn");
   const result = document.getElementById("result");
   const statusText = document.getElementById("status-text");
+  const inviteToggle = document.getElementById("invite-toggle");
+  const invitePanel = document.getElementById("invite-panel");
+  const inviteInput = document.getElementById("invite-code");
+  const inviteSaved = document.getElementById("invite-saved");
 
   // ---------- Load stored settings ----------
-  chrome.storage.local.get(["targetLanguage", ...AMOUNT_KEYS], (data) => {
+  chrome.storage.local.get(["targetLanguage", "inviteCode", ...AMOUNT_KEYS], (data) => {
     checkValue(languageInputs, data.targetLanguage ?? "DA");
+    inviteInput.value = data.inviteCode ?? "";
     for (const group of amountGroups) {
       checkValue(group.querySelectorAll("input"), String(data[group.dataset.key] ?? 1));
     }
@@ -30,13 +35,30 @@ document.addEventListener("DOMContentLoaded", () => {
     group.addEventListener("change", (e) => chrome.storage.local.set({ [group.dataset.key]: e.target.value }));
   }
 
+  // ---------- Invite code ----------
+  inviteToggle.addEventListener("click", () => setInvitePanelOpen(invitePanel.hidden));
+  inviteInput.addEventListener("input", () => {
+    const code = inviteInput.value.trim().toUpperCase();
+    chrome.storage.local.set({ inviteCode: code });
+    inviteSaved.hidden = !code;
+  });
+
+  function setInvitePanelOpen(open) {
+    invitePanel.hidden = !open;
+    inviteToggle.setAttribute("aria-expanded", String(open));
+    if (open) inviteInput.focus();
+  }
+
   // ---------- Translate ----------
   translateBtn.addEventListener("click", async () => {
     setBusy(true);
     result.hidden = true;
     setStatus("");
 
-    const settings = { targetLanguage: checkedValue(languageInputs) };
+    const settings = {
+      targetLanguage: checkedValue(languageInputs),
+      inviteCode: inviteInput.value.trim().toUpperCase(),
+    };
     for (const group of amountGroups) {
       settings[group.dataset.key] = checkedValue(group.querySelectorAll("input"));
     }
@@ -45,7 +67,14 @@ document.addEventListener("DOMContentLoaded", () => {
     setBusy(false);
 
     if (!response?.ok) {
-      setStatus(response?.error || "Something went wrong.", true);
+      if (response?.status === 401) {
+        // Server says the invite code is missing or wrong: open the field so it can be fixed
+        setStatus(inviteInput.value ? "That invite code isn't valid." : "Enter your invite code below to start.", true);
+        setInvitePanelOpen(true);
+        inviteInput.select();
+      } else {
+        setStatus(response?.error || "Something went wrong.", true);
+      }
       return;
     }
     const { nouns, verbs, prepositions } = response.counts;

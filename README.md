@@ -29,18 +29,20 @@ A small user survey from the project found:
  popup.js ──settings──▶ chrome.storage
                               │
  content.js (injected into the current tab when you click "Translate this page")
-   │  GET /get-replacements?url=<page>&targetLanguage=..&nounSliderValue=..
+   │  POST /replacements  {"text": <visible page text>, "targetLanguage": "DA", "nounSliderValue": 1, ...}
    ▼
  Flask backend (backend/app.py)
-   1. downloads the page at <url>          (requests + BeautifulSoup)
+   1. validates the input and applies a per-IP rate limit
    2. tags parts of speech                 (spaCy, en_core_web_sm)
    3. picks the N most frequent nouns / verbs / prepositions
-   4. translates them in one batch         (DeepL API)
+   4. translates them: cached words are free, the rest go to DeepL in one batch
    ▼
  { "nouns": {"water": "vand"}, "verbs": {...}, "prepositions": {...} }
    │
- content.js walks the page's text nodes and replaces matches with highlighted <span>s
+ content.js walks the page's text nodes and replaces matches with underlined <span>s
 ```
+
+The extension sends the text you can see rather than the page's URL. That way the server never downloads arbitrary web pages (which would be an SSRF risk), logged-in pages work, and the server never learns which URL you're on.
 
 An earlier version used an LLM for the translations. It was replaced with spaCy + DeepL because that is faster, cheaper and sends less data to third parties. The trade-off is that the translations don't take context into account.
 
@@ -55,8 +57,13 @@ An earlier version used an LLM for the translations. It was replaced with spaCy 
 | `branding/` | Logo sources: `logo-source.svg` (editable, uses the Noto Sans Devanagari font), `logo.svg` (text converted to outlines), `logo-small.svg` (simplified 16px version) |
 | `chrome-extention/popup2.*` | An older popup design. Not used |
 | `backend/app.py` | The Flask server the extension talks to |
+| `backend/requirements.txt` | Python dependencies, including the spaCy English model |
+| `backend/gunicorn.conf.py` | Production server settings |
+| `backend/make_invite.py` | Generates invite codes (see [Invite codes](#invite-codes)) |
+| `render.yaml` | Deployment config for Render (see [Deployment](#deployment)) |
+| `PRIVACY.md` | Privacy policy (link to it from the store listings) |
+| `docs/chrome-web-store.md` | Answers for the Chrome Web Store privacy form |
 | `backend/server2.py` | Old test server with hardcoded Danish words. Not used |
-| `requirements.txt` | Python dependencies (`backend/requirements.txt` is empty and can be ignored) |
 
 ---
 
@@ -68,7 +75,7 @@ You need two things running: the **backend** (a Python Flask server on `localhos
 
 - Python 3.12 (3.10+ should work)
 - Google Chrome or another Chromium browser (Edge, Brave), or Firefox (see [Firefox](#firefox))
-- A free **DeepL API key**. Sign up at <https://www.deepl.com/pro-api> and choose the *Free* plan. The code calls the free endpoint `api-free.deepl.com`, so a Pro key won't work without changing the URL in `app.py`.
+- A **DeepL API key**. Sign up at <https://www.deepl.com/pro-api> and choose the *Free* plan (500,000 characters a month). The backend picks the right DeepL endpoint automatically for Free keys (ending in `:fx`) and Pro keys.
 
 ### 1. Set up the backend (one time)
 
@@ -77,8 +84,7 @@ From the repo root:
 ```bash
 python3 -m venv .hcai
 source .hcai/bin/activate            # fish: source .hcai/bin/activate.fish
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm   # the English language model spaCy needs
+pip install -r backend/requirements.txt   # also installs spaCy's English model
 ```
 
 Create `backend/.env` containing your DeepL key:
@@ -94,18 +100,22 @@ DEEPL_API_KEY=your-key-here
 ```bash
 source .hcai/bin/activate
 cd backend
-flask run            # serves on http://127.0.0.1:5000
+flask run --debug    # serves on http://127.0.0.1:5000 and reloads when you edit app.py
 ```
 
-You have to run `flask run` from inside `backend/`, because that's where `app.py` is. From the repo root you can use `flask --app backend/app run` instead. Add `--debug` to get auto-reload while you edit.
+Run it from inside `backend/`, because that's where `app.py` is.
 
 Quick check that it works:
 
 ```bash
-curl "http://localhost:5000/get-replacements?url=https://en.wikipedia.org/wiki/Coffee&targetLanguage=DA"
+curl -X POST http://localhost:5000/replacements \
+  -H 'Content-Type: application/json' \
+  -d '{"text": "The cat drinks milk from a bowl in the kitchen.", "targetLanguage": "DA"}'
 ```
 
-You should get JSON with `nouns`, `verbs` and `prepositions`. If every translation ends in ` (DK)`, the DeepL call failed. Check your key and the server log.
+You should get JSON with `nouns`, `verbs` and `prepositions`. An `error` field tells you what went wrong, for example a bad DeepL key. More detail is in the server log.
+
+To try the production server locally (the same way it runs when hosted): `gunicorn -c gunicorn.conf.py app:app`, from `backend/`. It listens on port 8000, or on `$PORT` if that's set.
 
 > **macOS:** AirPlay Receiver uses port 5000. Turn it off in System Settings, or run on another port and update the port in both `content.js` and `manifest.json`.
 
@@ -129,8 +139,17 @@ You should get JSON with `nouns`, `verbs` and `prepositions`. If every translati
 
 ### Configuration
 
-- The backend URL is hardcoded as `http://localhost:5000` in `content.js` (`baseUrl`) and in `manifest.json` (`host_permissions`). Both have to change when the backend is hosted somewhere else.
-- The slider-to-word-count mapping (`0 → 0`, `1 → 5`, `2 → 30`) is in `backend/app.py`.
+- **Backend URL:** `BACKEND_URL` at the top of `content.js` and `host_permissions` in `manifest.json`. Both have to change when the backend is hosted somewhere else.
+- **Backend settings** (environment variables, or `backend/.env` locally):
+
+  | Variable | Default | What it does |
+  |---|---|---|
+  | `DEEPL_API_KEY` | (required) | Your DeepL key |
+  | `RATE_LIMIT` | `20 per minute;300 per day` | Requests allowed per IP address ([syntax](https://flask-limiter.readthedocs.io/en/stable/configuration.html#rate-limit-string-notation)) |
+  | `TRUST_PROXY` | off | Set to `1` only behind a load balancer (e.g. Render), so the real client IP is used for rate limiting |
+  | `DEEPL_URL` | chosen from the key | Override the DeepL endpoint |
+  | `INVITE_CODES` | not set (anyone can use the server) | Who may use the server: `name:CODE,name:CODE`. See [Invite codes](#invite-codes) |
+- The Off/Some/Lots → word-count mapping (`0 → 0`, `1 → 5`, `2 → 30`) is `AMOUNT_TO_WORD_COUNT` in `backend/app.py`.
 
 ### Regenerating the icons
 
@@ -146,9 +165,42 @@ inkscape "$PWD/logo-small.svg" -w 16 -h 16 -o "$PWD/../chrome-extention/icons/ic
 ### Known issues / TODO
 
 - **Pages that load content later** (infinite scroll, single-page apps) only get partly translated, because the replacement runs once per click. Click again to translate new content.
-- **Login-only pages don't work:** the backend downloads the URL again on its own, so it can't see pages that require a login and may see different content from what you see.
 - Translations are single words with no context.
 - The `.hcai/` virtualenv is committed to git. It should be removed from the repo with `git rm -r --cached .hcai` and added to `.gitignore`.
+
+---
+
+## Deployment
+
+The backend is set up to run on [Render](https://render.com)'s free plan. `render.yaml` at the repo root describes the whole service: build command, start command, Python version and environment variables.
+
+**First deploy:**
+
+1. Push the repo to GitHub.
+2. On Render: **New → Blueprint**, connect your GitHub account and pick this repo. Render reads `render.yaml`.
+3. When asked for `DEEPL_API_KEY`, paste your key. For `INVITE_CODES`, paste the line from `make_invite.py` (see below). Both are stored as secrets on Render, never in the repo.
+4. Wait for the build. The first one takes a few minutes because it installs spaCy. When it's done, the service shows a URL like `https://bolang-backend.onrender.com`.
+5. Check it: open `https://<your-url>/healthz`. It should show `{"status": "ok"}`.
+6. Point the extension at it: set `BACKEND_URL` in `content.js` to that URL, and change `host_permissions` in `manifest.json` to `"https://<your-url>/"`.
+
+**After that:** every push to the main branch that changes something in `backend/` redeploys automatically. Logs are on the service's **Logs** tab.
+
+### Invite codes
+
+The hosted backend only serves people with an invite code, so strangers can't use up your DeepL allowance.
+
+- **Make codes:** `python backend/make_invite.py maria jonas`. It prints a code per person and the line to paste into `INVITE_CODES` on Render (Dashboard → your service → **Environment**). Saving the variable redeploys the service.
+- **Give a code to a friend:** they open the popup, click **Invite code** and paste it. It's saved in their browser.
+- **Revoke a code:** remove that person's `name:CODE` entry from `INVITE_CODES`.
+- **How it works:** the extension sends the code in an `Authorization: Bearer <code>` header. The server compares it against `INVITE_CODES` before doing any work and returns `401` if it doesn't match. Rate limits count per code, so one person can't use up everyone's share. Requests without a valid code are limited per IP address, which makes guessing codes hopeless.
+- Locally, leave `INVITE_CODES` unset and no code is needed.
+
+### Free-plan behaviour to know about
+
+- The server **sleeps after 15 minutes without requests**. The next request wakes it, which takes about a minute, so the popup shows "Reading the page…" for a while.
+- Memory is 512 MB. That's why gunicorn runs a single worker process (each one loads its own copy of spaCy) with 4 threads.
+- The translation cache and rate-limit counters live in memory, so they reset whenever the server sleeps or redeploys.
+- The DeepL Free plan allows 500,000 characters a month across all users. Once that's used up, the backend returns "The monthly translation quota has run out" until the next month.
 
 ---
 

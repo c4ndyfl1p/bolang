@@ -1,0 +1,21 @@
+# Render "Blueprint": describes the backend so Render can create and deploy it from this repo.
+# In the Render dashboard: New -> Blueprint -> pick this repo. It reads this file.
+services:
+  - type: web                  # a web service = something that answers HTTP requests
+    name: bolang-backend       # also becomes the URL: https://bolang-backend.onrender.com (if the name is free)
+    runtime: python
+    plan: free
+    region: frankfurt          # close to Denmark (faster), and user data stays in the EU (GDPR)
+    rootDir: backend           # only this folder is used, and only changes here trigger a redeploy
+    buildCommand: pip install -r requirements.txt     # runs once per deploy
+    startCommand: gunicorn -c gunicorn.conf.py app:app # runs to start the server
+    healthCheckPath: /healthz  # Render pings this; if it fails, the deploy is marked as failed
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3          # same version as local development
+      - key: TRUST_PROXY
+        value: "1"             # we're behind Render's load balancer; see ProxyFix in app.py
+      - key: DEEPL_API_KEY
+        sync: false            # secret: Render asks you to paste it in the dashboard; never commit it
+      - key: INVITE_CODES
+        sync: false            # secret: "name:CODE,name:CODE" (make codes with backend/make_invite.py)
