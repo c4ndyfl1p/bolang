@@ -73,7 +73,19 @@
 
     <p id="status-text" class="status" role="status"></p>
 
-    <button id="restore-btn" class="link">Show original text</button>
+    <footer class="footer">
+      <button id="restore-btn" class="link">Show original text</button>
+      <span class="sep" aria-hidden="true">·</span>
+      <button id="invite-toggle" class="link" aria-expanded="false" aria-controls="invite-panel">Invite code</button>
+    </footer>
+
+    <div id="invite-panel" class="invite" hidden>
+      <label for="invite-code">Your invite code</label>
+      <div class="invite-row">
+        <input id="invite-code" type="text" placeholder="ABCD-EFGH" autocomplete="off" spellcheck="false" maxlength="20" />
+        <span id="invite-saved" class="saved" hidden>Saved ✓</span>
+      </div>
+    </div>
   </main>
 
   <script src="popup.js"></script>

@@ -220,3 +220,25 @@ button:disabled { opacity: 0.6; cursor: progress; }
 
 /* No transitions while the saved settings are first applied (avoids a flash on open) */
 .preload *, .preload *::after { transition: none !important; }
+
+/* ---------- Footer + invite code ---------- */
+.footer { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: -6px; }
+.footer .sep { color: var(--line); }
+.invite { display: flex; flex-direction: column; gap: 6px; margin-top: -8px; }
+.invite label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.invite-row { display: flex; align-items: center; gap: 8px; }
+.invite input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font: 600 14px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.invite input::placeholder { color: var(--ink-soft); opacity: 0.5; }
+.invite input:focus { outline: 2px solid var(--saffron); outline-offset: 1px; border-color: transparent; }
+.saved { font-size: 12px; color: var(--verb); white-space: nowrap; }

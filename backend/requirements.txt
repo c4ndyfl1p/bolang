@@ -1,0 +1,12 @@
+# Packages the backend imports directly. pip installs their own dependencies automatically.
+# Versions are pinned so local and production behave the same.
+Flask==3.1.0
+flask-cors==5.0.1
+Flask-Limiter==4.1.1
+gunicorn==27.0.1
+python-dotenv==1.2.3
+requests==2.32.3
+spacy==3.8.18
+
+# spaCy's small English model, installed straight from its release URL so `pip install -r` is all a server needs
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
