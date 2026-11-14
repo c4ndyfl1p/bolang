@@ -3,49 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bolang Translate</title>
+  <title>BoLang</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
-<body>
-  <div class="popup-container">
-    <h2>🌍 Bolang Translate</h2>
+<body class="preload">
+  <main class="popup">
+    <header class="brand">
+      <img src="icons/icon48.png" alt="" width="36" height="36" />
+      <div>
+        <h1 class="wordmark"><span class="hi" lang="hi">बोल</span>Lang</h1>
+        <p class="tagline">learn a language while you read</p>
+      </div>
+    </header>
 
-    <div class="group">
-      <label for="target-language">Target Language</label>
-      <select id="target-language">
-        <option value="DA">Danish</option>
-        <option value="ES">Spanish</option>
-        <option value="FR">French</option>
-        <option value="DE">German</option>
-        <option value="IT">Italian</option>
-        <option value="PL">Polish</option>
-      </select>
+    <fieldset class="section">
+      <legend>I'm learning</legend>
+      <div class="languages" id="languages">
+        <label class="chip"><input type="radio" name="lang" value="DA" /><span lang="da">Dansk</span></label>
+        <label class="chip"><input type="radio" name="lang" value="DE" /><span lang="de">Deutsch</span></label>
+        <label class="chip"><input type="radio" name="lang" value="ES" /><span lang="es">Español</span></label>
+        <label class="chip"><input type="radio" name="lang" value="FR" /><span lang="fr">Français</span></label>
+        <label class="chip"><input type="radio" name="lang" value="IT" /><span lang="it">Italiano</span></label>
+        <label class="chip"><input type="radio" name="lang" value="PL" /><span lang="pl">Polski</span></label>
+      </div>
+    </fieldset>
+
+    <section class="section">
+      <h2 class="legend">How many words to swap</h2>
+      <div class="amounts">
+        <fieldset class="amount" data-key="nounSliderValue">
+          <legend><span class="sample noun">nouns</span></legend>
+          <div class="segmented">
+            <label><input type="radio" name="noun" value="0" /><span>Off</span></label>
+            <label><input type="radio" name="noun" value="1" /><span>Some</span></label>
+            <label><input type="radio" name="noun" value="2" /><span>Lots</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="amount" data-key="verbSliderValue">
+          <legend><span class="sample verb">verbs</span></legend>
+          <div class="segmented">
+            <label><input type="radio" name="verb" value="0" /><span>Off</span></label>
+            <label><input type="radio" name="verb" value="1" /><span>Some</span></label>
+            <label><input type="radio" name="verb" value="2" /><span>Lots</span></label>
+          </div>
+        </fieldset>
+        <fieldset class="amount" data-key="prepositionSliderValue">
+          <legend><span class="sample preposition">prepositions</span></legend>
+          <div class="segmented">
+            <label><input type="radio" name="preposition" value="0" /><span>Off</span></label>
+            <label><input type="radio" name="preposition" value="1" /><span>Some</span></label>
+            <label><input type="radio" name="preposition" value="2" /><span>Lots</span></label>
+          </div>
+        </fieldset>
+      </div>
+    </section>
+
+    <button id="translate-btn" class="primary">
+      <span class="label">Translate this page</span>
+    </button>
+
+    <div id="result" class="result" hidden>
+      <div class="stats">
+        <div class="stat noun"><strong id="count-nouns">0</strong><span>nouns</span></div>
+        <div class="stat verb"><strong id="count-verbs">0</strong><span>verbs</span></div>
+        <div class="stat preposition"><strong id="count-prepositions">0</strong><span>prepositions</span></div>
+      </div>
+      <p class="caption">unique words translated · hover one to peek</p>
     </div>
 
-    <div class="group">
-      <label for="noun-slider"><span class="dot noun"></span>Nouns</label>
-      <input type="range" id="noun-slider" min="0" max="2" value="1">
-      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
-    </div>
+    <p id="status-text" class="status" role="status"></p>
 
-    <div class="group">
-      <label for="verb-slider"><span class="dot verb"></span>Verbs</label>
-      <input type="range" id="verb-slider" min="0" max="2" value="1">
-      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
-    </div>
-
-    <div class="group">
-      <label for="preposition-slider"><span class="dot preposition"></span>Prepositions</label>
-      <input type="range" id="preposition-slider" min="0" max="2" value="1">
-      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
-    </div>
-
-    <div class="actions">
-      <button id="translate-btn" class="primary">Translate this page</button>
-      <button id="restore-btn" class="secondary">Show original</button>
-    </div>
-    <p id="status-text" role="status"></p>
-  </div>
+    <button id="restore-btn" class="link">Show original text</button>
+  </main>
 
   <script src="popup.js"></script>
 </body>

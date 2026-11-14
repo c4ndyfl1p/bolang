@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- BoLang logo: a speech bubble saying "बो" (from बोल, "speak"), with the saffron underline
+       the extension uses to mark translated words. Ink indigo + saffron. -->
+  <rect width="128" height="128" rx="30" fill="#2b2350"/>
+  <path d="M26 16 H102 A16 16 0 0 1 118 32 V84 A16 16 0 0 1 102 100 H56 L32 118 L37 100 H26 A16 16 0 0 1 10 84 V32 A16 16 0 0 1 26 16 Z" fill="#fbf3e4"/>
+  <text x="64" y="76" text-anchor="middle" font-family="Noto Sans Devanagari" font-weight="800" font-size="66" fill="#2b2350">बो</text>
+  <rect x="32" y="83" width="64" height="8" rx="4" fill="#ef9a2d"/>
+</svg>

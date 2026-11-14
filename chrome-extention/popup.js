@@ -1,62 +1,66 @@
-// Popup UI: language + intensity settings (saved in chrome.storage) and two buttons.
+// Popup UI: language chips + Off/Some/Lots per part of speech (saved in chrome.storage), and two buttons.
 // "Translate this page" injects content.js into the active tab (only when clicked, via activeTab)
-// and asks it to translate. "Show original" asks it to undo the replacements.
+// and asks it to translate. "Show original text" asks it to undo the replacements.
 
-const SETTINGS = ["targetLanguage", "nounSliderValue", "verbSliderValue", "prepositionSliderValue"];
+const AMOUNT_KEYS = ["nounSliderValue", "verbSliderValue", "prepositionSliderValue"];
 
 document.addEventListener("DOMContentLoaded", () => {
-  const targetLanguageSelect = document.getElementById("target-language");
-  const sliders = {
-    nounSliderValue: document.getElementById("noun-slider"),
-    verbSliderValue: document.getElementById("verb-slider"),
-    prepositionSliderValue: document.getElementById("preposition-slider"),
-  };
+  const languageInputs = document.querySelectorAll('input[name="lang"]');
+  const amountGroups = document.querySelectorAll(".amount"); // each has data-key = storage key
   const translateBtn = document.getElementById("translate-btn");
+  const translateLabel = translateBtn.querySelector(".label");
   const restoreBtn = document.getElementById("restore-btn");
+  const result = document.getElementById("result");
   const statusText = document.getElementById("status-text");
 
-  // Load stored settings
-  chrome.storage.local.get(SETTINGS, (data) => {
-    targetLanguageSelect.value = data.targetLanguage ?? "DA";
-    for (const [key, slider] of Object.entries(sliders)) {
-      slider.value = data[key] ?? 1;
+  // ---------- Load stored settings ----------
+  chrome.storage.local.get(["targetLanguage", ...AMOUNT_KEYS], (data) => {
+    checkValue(languageInputs, data.targetLanguage ?? "DA");
+    for (const group of amountGroups) {
+      checkValue(group.querySelectorAll("input"), String(data[group.dataset.key] ?? 1));
     }
+    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("preload")));
   });
 
-  // Save settings when they change
-  targetLanguageSelect.addEventListener("change", () => {
-    chrome.storage.local.set({ targetLanguage: targetLanguageSelect.value });
-  });
-  for (const [key, slider] of Object.entries(sliders)) {
-    slider.addEventListener("input", () => chrome.storage.local.set({ [key]: slider.value }));
+  // ---------- Save settings when they change ----------
+  for (const input of languageInputs) {
+    input.addEventListener("change", () => chrome.storage.local.set({ targetLanguage: input.value }));
+  }
+  for (const group of amountGroups) {
+    group.addEventListener("change", (e) => chrome.storage.local.set({ [group.dataset.key]: e.target.value }));
   }
 
+  // ---------- Translate ----------
   translateBtn.addEventListener("click", async () => {
-    setBusy(true, "Translating… this can take a few seconds.");
-    const settings = {
-      targetLanguage: targetLanguageSelect.value,
-      nounSliderValue: sliders.nounSliderValue.value,
-      verbSliderValue: sliders.verbSliderValue.value,
-      prepositionSliderValue: sliders.prepositionSliderValue.value,
-    };
-    const result = await sendToPage({ type: "TRANSLATE_PAGE", settings });
-    if (result?.ok) {
-      const { nouns, verbs, prepositions } = result.counts;
-      if (nouns + verbs + prepositions === 0) {
-        setBusy(false, "No matching words found on this page.");
-      } else {
-        setBusy(false,
-          `Translated ${plural(nouns, "unique noun")}, ${plural(verbs, "unique verb")} ` +
-          `and ${plural(prepositions, "unique preposition")}. Hover one to see the original.`);
-      }
-    } else {
-      setBusy(false, result?.error || "Something went wrong.", true);
+    setBusy(true);
+    result.hidden = true;
+    setStatus("");
+
+    const settings = { targetLanguage: checkedValue(languageInputs) };
+    for (const group of amountGroups) {
+      settings[group.dataset.key] = checkedValue(group.querySelectorAll("input"));
     }
+
+    const response = await sendToPage({ type: "TRANSLATE_PAGE", settings });
+    setBusy(false);
+
+    if (!response?.ok) {
+      setStatus(response?.error || "Something went wrong.", true);
+      return;
+    }
+    const { nouns, verbs, prepositions } = response.counts;
+    if (nouns + verbs + prepositions === 0) {
+      setStatus("No matching words found on this page.");
+      return;
+    }
+    showCounts(response.counts);
   });
 
+  // ---------- Restore ----------
   restoreBtn.addEventListener("click", async () => {
-    const result = await sendToPage({ type: "RESTORE_PAGE" });
-    setStatus(result?.ok ? "Original text restored." : (result?.error || "Something went wrong."), !result?.ok);
+    const response = await sendToPage({ type: "RESTORE_PAGE" });
+    result.hidden = true;
+    setStatus(response?.ok ? "Original text restored." : (response?.error || "Something went wrong."), !response?.ok);
   });
 
   // Inject content.js into the active tab (it guards against double-loading) and send it a message.
@@ -71,18 +75,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function plural(n, word) {
-    return `${n} ${word}${n === 1 ? "" : "s"}`;
+  // Count up from 0 for a little life
+  function showCounts(counts) {
+    result.hidden = false;
+    for (const [pos, target] of Object.entries(counts)) {
+      const el = document.getElementById(`count-${pos}`);
+      const start = performance.now();
+      const step = (now) => {
+        const t = Math.min((now - start) / 500, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - t, 3)));
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
   }
 
-  function setBusy(busy, text, isError = false) {
+  function setBusy(busy) {
     translateBtn.disabled = busy;
     restoreBtn.disabled = busy;
-    setStatus(text, isError);
+    translateBtn.classList.toggle("busy", busy);
+    translateLabel.textContent = busy ? "Reading the page…" : "Translate this page";
   }
 
   function setStatus(text, isError = false) {
     statusText.textContent = text;
     statusText.classList.toggle("error", isError);
+  }
+
+  function checkValue(inputs, value) {
+    for (const input of inputs) input.checked = input.value === value;
+  }
+
+  function checkedValue(inputs) {
+    return [...inputs].find((i) => i.checked)?.value;
   }
 });

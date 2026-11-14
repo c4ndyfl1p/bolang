@@ -19,8 +19,8 @@ A small user survey from the project found:
 ## Features
 
 - **Target language:** Danish, Spanish, French, German, Italian or Polish.
-- **Separate amount controls for nouns, verbs and prepositions.** Each slider is Off / Low / High, which is about 0, 5 or 30 of the most frequent words of that type on the page.
-- **Color coding:** nouns are pink, verbs are yellow and prepositions are blue. Hover over any of them to see the English original.
+- **Separate amount controls for nouns, verbs and prepositions.** Each is Off / Some / Lots, which is about 0, 5 or 30 of the most frequent words of that type on the page.
+- **Quiet colour coding:** translated words get a thin underline: saffron for nouns, teal for verbs and violet for prepositions. Hover one to see a small card with the English word and its part of speech.
 - **Translate on demand:** click **Translate this page** in the popup to translate the page you're on, and **Show original** to undo it. The extension only touches a page when you click.
 
 ## How it works
@@ -50,7 +50,9 @@ An earlier version used an LLM for the translations. It was replaced with spaCy 
 |---|---|
 | `chrome-extention/manifest.json` | Extension manifest (Manifest V3) |
 | `chrome-extention/content.js` | Injected into the current tab on click. Calls the backend and replaces words in the page (and restores them) |
-| `chrome-extention/popup.html` / `popup.js` / `popup.css` | The toolbar popup: language picker, sliders, Translate / Show original buttons |
+| `chrome-extention/popup.html` / `popup.js` / `popup.css` | The toolbar popup: language chips, Off/Some/Lots controls, Translate / Show original buttons. Follows the system's light/dark mode |
+| `chrome-extention/icons/` | Extension icons (16/32/48/128 px PNGs) |
+| `branding/` | Logo sources: `logo-source.svg` (editable, uses the Noto Sans Devanagari font), `logo.svg` (text converted to outlines), `logo-small.svg` (simplified 16px version) |
 | `chrome-extention/popup2.*` | An older popup design. Not used |
 | `backend/app.py` | The Flask server the extension talks to |
 | `backend/server2.py` | Old test server with hardcoded Danish words. Not used |
@@ -112,7 +114,7 @@ You should get JSON with `nouns`, `verbs` and `prepositions`. If every translati
 1. Go to `chrome://extensions`.
 2. Switch on **Developer mode** (top right).
 3. Click **Load unpacked** and pick the `chrome-extention/` folder.
-4. Pin "Bolang Translator" from the puzzle-piece menu. Open the popup, pick a language and click **Translate this page**.
+4. Pin "BoLang" from the puzzle-piece menu. Open the popup, pick a language and click **Translate this page**.
 5. Open or reload any English web page.
 
 ### Development loop
@@ -129,6 +131,17 @@ You should get JSON with `nouns`, `verbs` and `prepositions`. If every translati
 
 - The backend URL is hardcoded as `http://localhost:5000` in `content.js` (`baseUrl`) and in `manifest.json` (`host_permissions`). Both have to change when the backend is hosted somewhere else.
 - The slider-to-word-count mapping (`0 → 0`, `1 → 5`, `2 → 30`) is in `backend/app.py`.
+
+### Regenerating the icons
+
+After editing `branding/logo-source.svg` (needs Inkscape and the Noto Sans Devanagari font):
+
+```bash
+cd branding
+inkscape "$PWD/logo-source.svg" --export-text-to-path --export-plain-svg --export-filename="$PWD/logo.svg"
+for s in 32 48 128; do inkscape "$PWD/logo.svg" -w $s -h $s -o "$PWD/../chrome-extention/icons/icon$s.png"; done
+inkscape "$PWD/logo-small.svg" -w 16 -h 16 -o "$PWD/../chrome-extention/icons/icon16.png"
+```
 
 ### Known issues / TODO
 
