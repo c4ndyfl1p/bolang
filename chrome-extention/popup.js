@@ -1,8 +1,11 @@
-// Popup UI: language chips + Off/Some/Lots per part of speech (saved in chrome.storage), and two buttons.
+// Popup UI: language chips + Off/Some/Lots per part of speech (saved in extension storage), and two buttons.
 // "Translate this page" injects content.js into the active tab (only when clicked, via activeTab)
 // and asks it to translate. "Show original text" asks it to undo the replacements.
 
 const AMOUNT_KEYS = ["nounSliderValue", "verbSliderValue", "prepositionSliderValue"];
+
+// Firefox's native API is `browser` (promise-based); Chrome only has `chrome`. Use whichever exists.
+const ext = globalThis.browser ?? globalThis.chrome;
 
 document.addEventListener("DOMContentLoaded", () => {
   const languageInputs = document.querySelectorAll('input[name="lang"]');
@@ -18,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const inviteSaved = document.getElementById("invite-saved");
 
   // ---------- Load stored settings ----------
-  chrome.storage.local.get(["targetLanguage", "inviteCode", ...AMOUNT_KEYS], (data) => {
+  ext.storage.local.get(["targetLanguage", "inviteCode", ...AMOUNT_KEYS]).then((data) => {
     checkValue(languageInputs, data.targetLanguage ?? "DA");
     inviteInput.value = data.inviteCode ?? "";
     for (const group of amountGroups) {
@@ -29,19 +32,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ---------- Save settings when they change ----------
   for (const input of languageInputs) {
-    input.addEventListener("change", () => chrome.storage.local.set({ targetLanguage: input.value }));
+    input.addEventListener("change", () => ext.storage.local.set({ targetLanguage: input.value }));
   }
   for (const group of amountGroups) {
-    group.addEventListener("change", (e) => chrome.storage.local.set({ [group.dataset.key]: e.target.value }));
+    group.addEventListener("change", (e) => ext.storage.local.set({ [group.dataset.key]: e.target.value }));
   }
 
   // ---------- Invite code ----------
   inviteToggle.addEventListener("click", () => setInvitePanelOpen(invitePanel.hidden));
   inviteInput.addEventListener("input", () => {
-    const code = inviteInput.value.trim().toUpperCase();
-    chrome.storage.local.set({ inviteCode: code });
+    const code = normalizeInviteCode(inviteInput.value);
+    ext.storage.local.set({ inviteCode: code });
     inviteSaved.hidden = !code;
   });
+
+  // Accept "BMFS-CM22", "bmfs-cm22" or the whole "name:BMFS-CM22" line printed by make_invite.py
+  function normalizeInviteCode(value) {
+    const afterColon = value.split(":").pop();
+    return afterColon.replace(/\s+/g, "").toUpperCase();
+  }
 
   function setInvitePanelOpen(open) {
     invitePanel.hidden = !open;
@@ -57,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const settings = {
       targetLanguage: checkedValue(languageInputs),
-      inviteCode: inviteInput.value.trim().toUpperCase(),
+      inviteCode: normalizeInviteCode(inviteInput.value),
     };
     for (const group of amountGroups) {
       settings[group.dataset.key] = checkedValue(group.querySelectorAll("input"));
@@ -95,9 +104,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Inject content.js into the active tab (it guards against double-loading) and send it a message.
   async function sendToPage(message) {
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-      return await chrome.tabs.sendMessage(tab.id, message);
+      const [tab] = await ext.tabs.query({ active: true, currentWindow: true });
+      await ext.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+      return await ext.tabs.sendMessage(tab.id, message);
     } catch (err) {
       console.error(err);
       return { ok: false, error: "This page can't be translated (browser pages and the extension store are off-limits)." };

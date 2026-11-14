@@ -13,7 +13,8 @@ if (!window.__bolangLoaded) {
   window.__bolangLoaded = true;
 
   // Where the backend lives. Change this one line (and host_permissions in manifest.json) when deploying.
-  const BACKEND_URL = "http://localhost:5000";
+  // For local development, use "http://localhost:5000" (and add it to host_permissions in manifest.json).
+  const BACKEND_URL = "https://bolang-backend.onrender.com";
   const MAX_TEXT_CHARS = 100000; // same cap as the backend
   const WORD_SELECTOR = ".bolang-word";
   const POS = {
@@ -22,7 +23,10 @@ if (!window.__bolangLoaded) {
     prepositions: { className: "bolang-preposition", label: "preposition" },
   };
 
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Firefox's native API is `browser`; Chrome only has `chrome`.
+  const ext = globalThis.browser ?? globalThis.chrome;
+
+  ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "TRANSLATE_PAGE") {
       translatePage(message.settings)
         .then((counts) => sendResponse({ ok: true, counts }))
