@@ -23,27 +23,28 @@
     </div>
 
     <div class="group">
-      <label for="noun-slider">Nouns</label>
+      <label for="noun-slider"><span class="dot noun"></span>Nouns</label>
       <input type="range" id="noun-slider" min="0" max="2" value="1">
+      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
     </div>
 
     <div class="group">
-      <label for="verb-slider">Verbs</label>
+      <label for="verb-slider"><span class="dot verb"></span>Verbs</label>
       <input type="range" id="verb-slider" min="0" max="2" value="1">
+      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
     </div>
 
     <div class="group">
-      <label for="preposition-slider">Prepositions</label>
+      <label for="preposition-slider"><span class="dot preposition"></span>Prepositions</label>
       <input type="range" id="preposition-slider" min="0" max="2" value="1">
+      <div class="ticks"><span>Off</span><span>Some</span><span>Lots</span></div>
     </div>
 
-    <div class="group toggle-group">
-      <label class="switch">
-        <input type="checkbox" id="toggle-extension">
-        <span class="slider"></span>
-      </label>
-      <p id="status-text">Extension is <strong>Off</strong></p>
+    <div class="actions">
+      <button id="translate-btn" class="primary">Translate this page</button>
+      <button id="restore-btn" class="secondary">Show original</button>
     </div>
+    <p id="status-text" role="status"></p>
   </div>
 
   <script src="popup.js"></script>

@@ -1,249 +1,155 @@
-// This script fetches a dictionary from the backend and replaces words in the DOM
-// with their translations. It also adds hover styling for the translated words.
-// Dict is a simple object with nouns and verbs as keys and their translations as values.
-// The script avoids modifying form fields, scripts, and styles to prevent issues.
-// It uses a single RegExp to match all words for efficiency and applies the replacements
-// in a single pass. The replacements are done by creating new text nodes and spans
-// instead of modifying innerHTML, which can be error-prone and inefficient.
+// Injected into the current tab by popup.js when the user clicks "Translate this page".
+// It asks the backend for translations of the most frequent nouns/verbs/prepositions on this page,
+// then replaces matching words in the page's text nodes with highlighted <span>s.
+// The original word is kept in the span's title (shown on hover) so "Show original" can undo it.
+//
+// Known limitations:
+// - Content loaded after translating (infinite scroll, SPAs) isn't translated until you click again.
+// - Translations are single words without context.
 
-// Issues:
-// 1. Longer pages may not get fully tranbslated because of lazy loading. I dont know wnof Javascrupt to fix that without breaking more
-// 2. Translations may not have context since we are just replacing everything. We dont even need ot use OPEN AI on the backend and can use NLP + DeepL. In fututre i want to change this to more context based trabnslations
+// popup.js injects this file on every click; only set things up once per page.
+if (!window.__bolangLoaded) {
+  window.__bolangLoaded = true;
 
-// To do:
-// 1. Add a button to toggle the translation on and off -done
-//    - This is done in the popup.js and popup.html files. The content.js listens for messages from the popup.
-//    - The popup.js sends a message to the content.js when the toggle is changed.
-//    - The content.js then fetches the translations from the backend and applies them to the page.
-//    - The content.js also listens for messages from the popup to turn off the translations.
-//    - The content.js reloads the page to restore the original text.
-//    - The popup.js also stores the state of the toggle in chrome.storage..
-// 2. Add UI to - 2.1 selct language, toggle verbs and nouns and prepositions
-// 3. Add a a slider to change intensity of nouns and verbs translations (send that to the backend)
-// 4. Send the website URL to the backend and have the backend generate specific translations for that website -done
+  const BACKEND_URL = "http://localhost:5000/get-replacements";
+  const SPAN_SELECTOR = ".translated-noun, .translated-verb, .translated-preposition";
 
-
-let extensionEnabled = false; // Default state
-
-// ========= ADDED: Listen for toggle messages from the popup =========
-// This listener waits for messages (sent by the popup when the toggle is changed)
-// to update the extension's state.
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Check if the message is of type "TOGGLE_EXTENSION"
-  if (message.type === "TOGGLE_EXTENSION") {
-    // Update the extension's state based on the message
-    extensionEnabled = message.enabled;
-    console.log("Extension state changed:", extensionEnabled);
-    if (extensionEnabled) {
-      // If enabled, fetch and apply translations.
-      console.log("Extension enabled. Fetching replacements...");
-      fetchReplacements();
-    } else {
-      // If turned off, revert the translations.
-      // For simplicity, we reload the page to restore original text.
-      location.reload();
-      console.log("Extension disabled. Reloading page to restore original text.");
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "TRANSLATE_PAGE") {
+      translatePage(message.settings)
+        .then((counts) => sendResponse({ ok: true, counts }))
+        .catch((err) => {
+          console.error("BoLang:", err);
+          sendResponse({ ok: false, error: err.message });
+        });
+      return true; // keep the message channel open for the async response
     }
-  }
-});
+    if (message.type === "RESTORE_PAGE") {
+      removePreviousTranslations();
+      sendResponse({ ok: true });
+    }
+  });
 
-// ========= ADDED: Initialize based on stored setting =========
-// When the page loads, we check chrome.storage to see if the extension
-// is enabled. Based on that, we decide whether to fetch translations.
-chrome.storage.local.get(["extensionEnabled", "targetLanguage"], (data) => {
-  extensionEnabled = data.extensionEnabled ?? false;
-  // const targetLanguage = data.targetLanguage || "da"; // Default to Danish
+  async function translatePage(settings) {
+    const params = new URLSearchParams({ url: window.location.href, ...settings });
 
-  // console.log("content.js: Target language from chrome storage:", targetLanguage);
+    let response;
+    try {
+      response = await fetch(`${BACKEND_URL}?${params}`);
+    } catch {
+      throw new Error("Can't reach the BoLang server. Is the backend running?");
+    }
+    const replacements = await response.json();
+    if (!response.ok) throw new Error(replacements.error || `Server error (${response.status})`);
 
-  if (extensionEnabled) {
-    console.log("Extension is enabled, read from chrome storage.");
-    fetchReplacements(); // Pass it to your function if needed
-  }
-});
-
-// 1. Fetch the replacements from backend
-async function fetchReplacements() {
-
-  // Only run the process if the extension is enabled.
-  if (!extensionEnabled) return;
-
-  // try {   
-  //   currentUrl = window.location.href;
-  //   const response = await fetch(`http://localhost:5000/get-replacements?url=${encodeURIComponent(currentUrl)}`);
-    
-  //   // const response = await fetch("http://localhost:5000/get-replacements");
-  //   const replacements = await response.json();
-  //   applyReplacements(replacements);
-  // } catch (error) {
-  //   console.error("Failed to fetch replacements:", error);
-  // }
-
-  try {
-    // Get the targetLanguage from local storage
-    chrome.storage.local.get(["targetLanguage", "nounSliderValue", "verbSliderValue", "prepositionSliderValue"], async (data) => {
-      const targetLanguage = data.targetLanguage || "danish"; // default if not set
-      console.log("fetching replacingts for Target language:", targetLanguage, "Noun slider value:", data.nounSliderValue);
-      currentUrl = window.location.href;
-      nounSliderValue = data.nounSliderValue || 1; // default if not set
-      verbSliderValue = data.verbSliderValue || 1; // default if not set
-      prepositionSliderValue = data.prepositionSliderValue || 1; // default if not set
-      
-
-      // Construct the URL using the URL object and URLSearchParams
-      const baseUrl = "http://localhost:5000/get-replacements";
-      const params = new URLSearchParams({
-        url: currentUrl,
-        targetLanguage: targetLanguage,
-        nounSliderValue: nounSliderValue,
-        verbSliderValue: verbSliderValue,
-        prepositionSliderValue: prepositionSliderValue
-      });
-
-      // Combine the base URL with query parameters
-      const requestUrl = `${baseUrl}?${params.toString()}`;
-
-      // Fetch data from backend
-      const response = await fetch(requestUrl);
-      
-      //basic way, not using now, using prettier way to encode the url
-      // const response = await fetch(`http://localhost:5000/get-replacements?url=${encodeURIComponent(currentUrl)}&targetLanguage=${encodeURIComponent(targetLanguage)}`);
-
-      const replacements = await response.json();
-      console.log("Replacements fetched. Target language:", targetLanguage, "Replacements:", replacements);
-      // location.reload();
-      applyReplacements(replacements);
-    });
-  } catch (error) {
-    console.error("Failed to fetch replacements:", error);
-  }
-}
-  
-  // 2. Apply replacements to the entire DOM
-  function applyReplacements(replacements) {
-
-    // removePreviousTranslations();
-    replaceText(document.body, replacements);
+    // Start from the original text so clicking again with new settings doesn't stack translations
+    removePreviousTranslations();
     addStyle();
-    
+    return replaceText(document.body, replacements);
   }
 
   function removePreviousTranslations() {
-    const spans = document.querySelectorAll('.translated-noun, .translated-verb, .translated-preposition');
-    for (const span of spans) {
-      const textNode = document.createTextNode(span.title); // original text is in title attr
-      span.replaceWith(textNode);
+    for (const span of document.querySelectorAll(SPAN_SELECTOR)) {
+      const parent = span.parentNode;
+      span.replaceWith(document.createTextNode(span.title)); // original text is in the title attr
+      parent.normalize(); // merge the split text nodes back together
     }
   }
-  
-  // 3. Replace words in text nodes recursively (no innerHTML)
-  function replaceText(node, replacements) {
-    if (node.nodeType === Node.TEXT_NODE) {
+
+  // Replace words in text nodes recursively (no innerHTML).
+  // Returns how many *unique* words of each type were actually replaced on the page.
+  function replaceText(root, replacements) {
+    const seen = { nouns: new Set(), verbs: new Set(), prepositions: new Set() };
+    const uniqueCounts = () => ({
+      nouns: seen.nouns.size,
+      verbs: seen.verbs.size,
+      prepositions: seen.prepositions.size,
+    });
+
+    const allWords = [
+      ...Object.keys(replacements.nouns),
+      ...Object.keys(replacements.verbs),
+      ...Object.keys(replacements.prepositions),
+    ];
+    if (allWords.length === 0) return uniqueCounts();
+    const regex = new RegExp(`\\b(${allWords.join("|")})\\b`, "gi");
+
+    // Collect text nodes first, then modify, so the DOM isn't changing while we walk it
+    const textNodes = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => (shouldSkipNode(node.parentElement) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    for (const node of textNodes) {
       const text = node.textContent;
-      const parent = node.parentNode;
-  
-      let fragments = [];
+      const fragments = [];
       let lastIndex = 0;
-      let didMatch = false;
-  
-      // Merge nouns and verbs into one RegExp for efficiency
-      const allWords = [
-        ...Object.keys(replacements.nouns),
-        ...Object.keys(replacements.verbs),
-        ...Object.keys(replacements.prepositions)
-      ];
-      const regex = new RegExp(`\\b(${allWords.join("|")})\\b`, "gi");
-  
       let match;
+      regex.lastIndex = 0;
+
       while ((match = regex.exec(text)) !== null) {
-        didMatch = true;
-  
-        // Push text before match
-        if (match.index > lastIndex) {
-          fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
-        }
-  
         const original = match[0];
         const lower = original.toLowerCase();
         let translation, className;
-  
         if (replacements.nouns[lower]) {
           translation = replacements.nouns[lower];
           className = "translated-noun";
+          seen.nouns.add(lower);
         } else if (replacements.verbs[lower]) {
           translation = replacements.verbs[lower];
           className = "translated-verb";
-        } else if (replacements.prepositions[lower]) {
+          seen.verbs.add(lower);
+        } else {
           translation = replacements.prepositions[lower];
           className = "translated-preposition";
+          seen.prepositions.add(lower);
         }
-  
+
+        if (match.index > lastIndex) {
+          fragments.push(document.createTextNode(text.slice(lastIndex, match.index)));
+        }
         const span = document.createElement("span");
         span.className = className;
         span.textContent = translation;
         span.title = original;
         fragments.push(span);
-  
         lastIndex = regex.lastIndex;
       }
-  
-      // Add any remaining text
-      if (didMatch && lastIndex < text.length) {
-        fragments.push(document.createTextNode(text.slice(lastIndex)));
-      }
-  
-      if (didMatch) {
-        fragments.forEach(frag => parent.insertBefore(frag, node));
-        parent.removeChild(node);
-      }
-    } else if (node.nodeType === Node.ELEMENT_NODE && !shouldSkipNode(node)) {
-      for (const child of Array.from(node.childNodes)) {
-        replaceText(child, replacements);
+
+      if (fragments.length > 0) {
+        if (lastIndex < text.length) fragments.push(document.createTextNode(text.slice(lastIndex)));
+        node.replaceWith(...fragments);
       }
     }
+    return uniqueCounts();
   }
-  
-  // 4. Avoid editing form fields and scripts
-  function shouldSkipNode(node) {
-    const tag = node.nodeName;
+
+  // Don't touch form fields, scripts, styles or editable areas
+  function shouldSkipNode(el) {
+    if (!el) return true;
     return (
-      tag === "SCRIPT" ||
-      tag === "STYLE" ||
-      tag === "TEXTAREA" ||
-      tag === "INPUT" ||
-      node.isContentEditable
+      ["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "INPUT"].includes(el.nodeName) ||
+      el.isContentEditable
     );
   }
-  
-  // 5. Add hover styling for translations
-  function addStyle() {
-    const style = document.createElement("style");
-    style.textContent = `
-      .translated-noun {
-        background-color: rgb(239, 169, 239);
-        cursor: help;
-        border-radius: 4px;
-        padding: 0 2px;
-      }
 
-      .translated-preposition {
-        background-color: #bbdefb;
+  // Highlight styling for translated words (added once)
+  function addStyle() {
+    if (document.getElementById("bolang-style")) return;
+    const style = document.createElement("style");
+    style.id = "bolang-style";
+    style.textContent = `
+      .translated-noun, .translated-verb, .translated-preposition {
         cursor: help;
         border-radius: 4px;
         padding: 0 2px;
+        color: #222;
       }
-  
-      .translated-verb {
-        background-color: #fff9c4;
-        cursor: help;
-        border-radius: 4px;
-        padding: 0 2px;
-      }
+      .translated-noun { background-color: rgb(239, 169, 239); }
+      .translated-verb { background-color: #fff9c4; }
+      .translated-preposition { background-color: #bbdefb; }
     `;
     document.head.appendChild(style);
   }
-  
-// 🚀 Start the process
-fetchReplacements();
-
-  
+}

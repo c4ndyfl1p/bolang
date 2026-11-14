@@ -20,24 +20,25 @@ if DEEPL_API_KEY is None:
     raise ValueError("DEEPL_API_KEY not found in environment")
 
 
+PAGE_FETCH_HEADERS = {"User-Agent": "BoLang/1.0 (language-learning browser extension)"}
+
+
 # Simple in-memory cache (key: word, value: translation)
 translation_cache = {}
 
 
 def batch_translate_words(words, source_lang, target_lang):
     url = "https://api-free.deepl.com/v2/translate"
-    params = {
-        "auth_key": DEEPL_API_KEY,
+    # DeepL requires the key in the Authorization header (auth_key in the body is no longer accepted)
+    headers = {"Authorization": f"DeepL-Auth-Key {DEEPL_API_KEY}"}
+    data = {
         "source_lang": source_lang,
         "target_lang": target_lang,
+        "text": list(words),
     }
-    
-    data = params.copy()
-    for word in words:
-        data.setdefault('text', []).append(word)
 
     try:
-        response = requests.post(url, data=data, timeout=10)
+        response = requests.post(url, headers=headers, data=data, timeout=10)
         response.raise_for_status()
         result = response.json()
         translations = result['translations']
@@ -95,7 +96,9 @@ def get_replacements():
     #     })
 
     try:
-        response = requests.get(url, timeout=5)
+        # Many sites (e.g. Wikipedia) reject requests without a descriptive User-Agent
+        response = requests.get(url, timeout=5, headers=PAGE_FETCH_HEADERS)
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
         texts = soup.stripped_strings
@@ -108,8 +111,8 @@ def get_replacements():
         prepositions_list = [token.text.lower() for token in doc if token.pos_ == "ADP" and token.is_alpha]
 
         top_nouns = [noun for noun, count in Counter(nouns_list).most_common(noun_intensity)]
-        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(preposition_intensity)]
-        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(verb_intensity)]
+        top_verbs = [verb for verb, count in Counter(verbs_list).most_common(verb_intensity)]
+        top_prepositions = [prep for prep, count in Counter(prepositions_list).most_common(preposition_intensity)]
 
         # Combine all words to translate
         all_words = list(set(top_nouns + top_verbs + top_prepositions))

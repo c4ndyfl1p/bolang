@@ -1,119 +1,88 @@
-// This script runs in the context of the popup window of the Chrome extension.
+// Popup UI: language + intensity settings (saved in chrome.storage) and two buttons.
+// "Translate this page" injects content.js into the active tab (only when clicked, via activeTab)
+// and asks it to translate. "Show original" asks it to undo the replacements.
 
-// 1.first loads UI elemts such as toggle, status text and target language select (these are classes in the popup.html file)
-
-// 2. it then loads the stored state of the extension from chrome.storage, and changes the UI elemets accordingly
-
-// 3.It also has events listeres for changes of the UI elemts such as the toggle and target language selec. 
-// 3. On the change of the UI element, the event listerer is triggered, local storage is set with the new value and a message is sent to content.js
-
+const SETTINGS = ["targetLanguage", "nounSliderValue", "verbSliderValue", "prepositionSliderValue"];
 
 document.addEventListener("DOMContentLoaded", () => {
-  const toggle = document.getElementById("toggle-extension");
-  const statusText = document.getElementById("status-text");
   const targetLanguageSelect = document.getElementById("target-language");
-  const nounSlider = document.getElementById("noun-slider");
-  const verbSlider = document.getElementById("verb-slider");
-  const prepositionSlider = document.getElementById("preposition-slider");
+  const sliders = {
+    nounSliderValue: document.getElementById("noun-slider"),
+    verbSliderValue: document.getElementById("verb-slider"),
+    prepositionSliderValue: document.getElementById("preposition-slider"),
+  };
+  const translateBtn = document.getElementById("translate-btn");
+  const restoreBtn = document.getElementById("restore-btn");
+  const statusText = document.getElementById("status-text");
 
-  // Load stored state
-  chrome.storage.local.get(["extensionEnabled", "targetLanguage", "nounSliderValue", "verbSliderValue", "prepositionSliderValue"], (data) => {
-    // Set the toggle state based on stored value
-    // If no value is stored, default to false for extensionEnabled
-    toggle.checked = data.extensionEnabled ?? false;
-    updateStatusText(toggle.checked);
-
-    const selectedLanguage = data.targetLanguage ?? "da"; // Default to Danish if no language is stored
-    targetLanguageSelect.value = selectedLanguage;
-    updateTargetLanguageSelect(selectedLanguage);
-
-    nounSlider.value = data.nounSliderValue ?? 1; // Default to 1 if no value is stored
-    updateNounSlider(nounSlider.value); // Update the slider UI
-
-    verbSlider.value = data.verbSliderValue ?? 1; // Default to 1 if no value is stored
-    updateVerbSlider(verbSlider.value); // Update the slider UI
-
-    prepositionSlider.value = data.prepositionSliderValue ?? 1; // Default to 1 if no value is stored
-    updatePrepositionSlider(prepositionSlider.value); // Update the slider UI
-
-    
+  // Load stored settings
+  chrome.storage.local.get(SETTINGS, (data) => {
+    targetLanguageSelect.value = data.targetLanguage ?? "DA";
+    for (const [key, slider] of Object.entries(sliders)) {
+      slider.value = data[key] ?? 1;
+    }
   });
 
-
-
-  // Add an event listener to handle changes in the toggle switch state
-  // When the user toggles the switch, we save the state to chrome.storage
-  toggle.addEventListener("change", () => {
-    const enabled = toggle.checked;
-    chrome.storage.local.set({ extensionEnabled: enabled });
-    updateStatusText(enabled);
-
-    // Optional: Send message to content script if you want to act immediately
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { type: "TOGGLE_EXTENSION", enabled });
-    });
-  });
-
-  // Add event listener for the target language select to handle changes
+  // Save settings when they change
   targetLanguageSelect.addEventListener("change", () => {
-    const selectedLanguage = targetLanguageSelect.value;
-    chrome.storage.local.set({ targetLanguage: selectedLanguage });
-    updateTargetLanguageSelect(selectedLanguage);
+    chrome.storage.local.set({ targetLanguage: targetLanguageSelect.value });
+  });
+  for (const [key, slider] of Object.entries(sliders)) {
+    slider.addEventListener("input", () => chrome.storage.local.set({ [key]: slider.value }));
+  }
 
-    // Send message to content script with the selected target language
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            
-    });
+  translateBtn.addEventListener("click", async () => {
+    setBusy(true, "Translating… this can take a few seconds.");
+    const settings = {
+      targetLanguage: targetLanguageSelect.value,
+      nounSliderValue: sliders.nounSliderValue.value,
+      verbSliderValue: sliders.verbSliderValue.value,
+      prepositionSliderValue: sliders.prepositionSliderValue.value,
+    };
+    const result = await sendToPage({ type: "TRANSLATE_PAGE", settings });
+    if (result?.ok) {
+      const { nouns, verbs, prepositions } = result.counts;
+      if (nouns + verbs + prepositions === 0) {
+        setBusy(false, "No matching words found on this page.");
+      } else {
+        setBusy(false,
+          `Translated ${plural(nouns, "unique noun")}, ${plural(verbs, "unique verb")} ` +
+          `and ${plural(prepositions, "unique preposition")}. Hover one to see the original.`);
+      }
+    } else {
+      setBusy(false, result?.error || "Something went wrong.", true);
+    }
   });
 
-    // Add event listener for the noun slider to handle changes
-  nounSlider.addEventListener("input", () => {
-    const nounSliderValue = nounSlider.value;
-    chrome.storage.local.set({ nounSliderValue: nounSliderValue });
-    console.log('Noun slider value stored:', nounSliderValue); // Optional: for debugging
-
-    updateNounSlider(nounSliderValue);
-    
+  restoreBtn.addEventListener("click", async () => {
+    const result = await sendToPage({ type: "RESTORE_PAGE" });
+    setStatus(result?.ok ? "Original text restored." : (result?.error || "Something went wrong."), !result?.ok);
   });
 
-  verbSlider.addEventListener("input", () => {
-    const verbSliderValue = verbSlider.value;
-    chrome.storage.local.set({ verbSliderValue: verbSliderValue });
-    console.log('Verb slider value stored:', verbSliderValue); // Optional: for debugging
-
-    updateVerbSlider(verbSliderValue);
-  });
-
-  prepositionSlider.addEventListener("input", () => {
-    const prepositionSliderValue = prepositionSlider.value;
-    chrome.storage.local.set({ prepositionSliderValue: prepositionSliderValue });
-    console.log('Preposition slider value stored:', prepositionSliderValue); // Optional: for debugging
-
-    updatePrepositionSlider(prepositionSliderValue);
-  }
-  );
-
-
-
-  // Function to update the target language select element
-  function updateTargetLanguageSelect(selectedLanguage) {    
-    targetLanguageSelect.value = selectedLanguage;
-    
+  // Inject content.js into the active tab (it guards against double-loading) and send it a message.
+  async function sendToPage(message) {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+      return await chrome.tabs.sendMessage(tab.id, message);
+    } catch (err) {
+      console.error(err);
+      return { ok: false, error: "This page can't be translated (browser pages and the extension store are off-limits)." };
+    }
   }
 
-  // Function to update the status text based on the extension state
-  function updateStatusText(enabled) {
-    statusText.innerHTML = `Extension is <strong>${enabled ? "On" : "Off"}</strong>`;
+  function plural(n, word) {
+    return `${n} ${word}${n === 1 ? "" : "s"}`;
   }
 
-  function updateNounSlider(value) {
-    nounSlider.value  = value;
+  function setBusy(busy, text, isError = false) {
+    translateBtn.disabled = busy;
+    restoreBtn.disabled = busy;
+    setStatus(text, isError);
   }
 
-  function updateVerbSlider(value) {
-    verbSlider.value  = value;
-  }
-  function updatePrepositionSlider(value) {
-    prepositionSlider.value  = value;
+  function setStatus(text, isError = false) {
+    statusText.textContent = text;
+    statusText.classList.toggle("error", isError);
   }
 });

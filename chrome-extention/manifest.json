@@ -1,17 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Bolang Translator",
-  "version": "1.0",
-  "description": "Replaces nouns with translations.",
-  "permissions": ["scripting", "storage"],
+  "version": "1.1",
+  "description": "Learn a language while you browse: swaps some words on the page for translations.",
+  "permissions": ["activeTab", "scripting", "storage"],
   "action": {
     "default_popup": "popup.html"
   },
-  "host_permissions": ["http://localhost:5000/"],
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
-  ]
+  "host_permissions": ["http://localhost:5000/"]
 }
