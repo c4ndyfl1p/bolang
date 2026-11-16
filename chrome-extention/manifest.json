@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BoLang",
-  "version": "1.3",
+  "version": "1.4",
   "description": "Learn a language while you browse: swaps some words on the page for translations.",
   "icons": {
     "16": "icons/icon16.png",

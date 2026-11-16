@@ -30,6 +30,9 @@
 
 * { box-sizing: border-box; }
 
+/* Make the HTML `hidden` attribute always win, even over rules like `.invite { display: flex }` */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   width: 300px;

@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inviteSaved.hidden = !code;
   });
 
-  // Accept "BMFS-CM22", "bmfs-cm22" or the whole "name:BMFS-CM22" line printed by make_invite.py
+  // Accept "ABCD-EFGH", "abcd-efgh" or the whole "name:ABCD-EFGH" line printed by make_invite.py
   function normalizeInviteCode(value) {
     const afterColon = value.split(":").pop();
     return afterColon.replace(/\s+/g, "").toUpperCase();
