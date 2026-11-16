@@ -61,6 +61,7 @@ An earlier version used an LLM for the translations. It was replaced with spaCy 
 | `backend/make_invite.py` | Generates invite codes (see [Invite codes](#invite-codes)) |
 | `render.yaml` | Deployment config for Render (see [Deployment](#deployment)) |
 | `PRIVACY.md` | Privacy policy (link to it from the store listings) |
+| `docs/invite-codes.md` | How to make, hand out and revoke invite codes |
 | `docs/firefox-addons.md` | How to publish on Firefox Add-ons (unlisted) and share with friends |
 | `scripts/package-firefox.sh` | Builds the zip to upload to Firefox Add-ons (`dist/bolang-<version>.zip`) |
 
@@ -187,6 +188,8 @@ The backend is set up to run on [Render](https://render.com)'s free plan. `rende
 ### Invite codes
 
 The hosted backend only serves people with an invite code, so strangers can't use up your DeepL allowance.
+
+**Step-by-step guide (making codes, spare codes, giving them out, revoking): [docs/invite-codes.md](docs/invite-codes.md).**
 
 - **Make codes:** `python backend/make_invite.py maria jonas`. It prints a code per person and the line to paste into `INVITE_CODES` on Render (Dashboard → your service → **Environment**). Saving the variable redeploys the service.
 - **Give a code to a friend:** they open the popup, click **Invite code** and paste it. It's saved in their browser.
