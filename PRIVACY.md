@@ -43,8 +43,6 @@ Your settings (target language, amounts, and invite code) are saved in your brow
 - No selling or renting of data
 - No use of data for anything other than translating the page you asked to translate
 
-BoLang's use of information complies with the [Chrome Web Store User Data Policy](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq), including the Limited Use requirements.
-
 ## Your choices and rights
 
 - Click **Show original text** to undo the translations on a page at any time.
@@ -57,4 +55,7 @@ If this policy changes, the new version will be posted at this address with a ne
 
 ## Contact
 
-Questions about privacy: **[your contact email]**
+Questions about privacy: **aakanksha.d.mail@gmail.com**
+
+## Hobby project
+This is mainly a hobby project for me  and my friends to learn danish. 

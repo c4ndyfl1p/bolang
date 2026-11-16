@@ -55,15 +55,14 @@ An earlier version used an LLM for the translations. It was replaced with spaCy 
 | `chrome-extention/popup.html` / `popup.js` / `popup.css` | The toolbar popup: language chips, Off/Some/Lots controls, Translate / Show original buttons. Follows the system's light/dark mode |
 | `chrome-extention/icons/` | Extension icons (16/32/48/128 px PNGs) |
 | `branding/` | Logo sources: `logo-source.svg` (editable, uses the Noto Sans Devanagari font), `logo.svg` (text converted to outlines), `logo-small.svg` (simplified 16px version) |
-| `chrome-extention/popup2.*` | An older popup design. Not used |
 | `backend/app.py` | The Flask server the extension talks to |
 | `backend/requirements.txt` | Python dependencies, including the spaCy English model |
 | `backend/gunicorn.conf.py` | Production server settings |
 | `backend/make_invite.py` | Generates invite codes (see [Invite codes](#invite-codes)) |
 | `render.yaml` | Deployment config for Render (see [Deployment](#deployment)) |
 | `PRIVACY.md` | Privacy policy (link to it from the store listings) |
-| `docs/chrome-web-store.md` | Answers for the Chrome Web Store privacy form |
-| `backend/server2.py` | Old test server with hardcoded Danish words. Not used |
+| `docs/firefox-addons.md` | How to publish on Firefox Add-ons (unlisted) and share with friends |
+| `scripts/package-firefox.sh` | Builds the zip to upload to Firefox Add-ons (`dist/bolang-<version>.zip`) |
 
 ---
 
@@ -206,20 +205,20 @@ The hosted backend only serves people with an invite code, so strangers can't us
 
 ## Firefox
 
-Firefox supports Manifest V3 and the `chrome.*` API names, so the same code mostly works. To try it now:
+BoLang is published for **Firefox** as an unlisted add-on: free, signed by Mozilla, and shared directly with friends. The full steps are in [docs/firefox-addons.md](docs/firefox-addons.md). In short:
 
-1. Go to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on…** and pick `chrome-extention/manifest.json`.
-3. Firefox doesn't grant `host_permissions` automatically in MV3. Go to `about:addons` → BoLang → *Permissions* and allow access to `localhost` and to websites.
+1. Test: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick `chrome-extention/manifest.json`.
+2. Build: `scripts/package-firefox.sh` → `dist/bolang-<version>.zip`.
+3. Submit at <https://addons.mozilla.org/developers/> → **On your own** → upload the zip → download the signed `.xpi`.
 
-Temporary add-ons are removed when Firefox restarts. To publish on addons.mozilla.org, the manifest also needs a `browser_specific_settings.gecko` block with an add-on `id` and a data-collection declaration.
+The code uses `browser.*` (Firefox) when available and falls back to `chrome.*`, so loading it unpacked in Chrome still works for development. Chrome ignores the Firefox-only `browser_specific_settings` key with a warning.
 
 ## Roadmap
 
 From the project's future-work plan:
 
 - Host the backend on a cloud service, with HTTPS and caching (Redis or in-memory) for repeated words.
-- Publish on the Chrome Web Store (and Firefox Add-ons): final manifest and permissions, branding, screenshots, privacy policy.
+- Publish publicly (listed on Firefox Add-ons, maybe the Chrome Web Store), which first needs bring-your-own DeepL key.
 - Handle content that loads after the page does, and make page edits safer.
 - Track progress per user and adapt to what they know: prioritize words they haven't learned yet.
 - Gamification: quizzes, streaks, achievements.
